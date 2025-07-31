@@ -12,6 +12,7 @@ class MenuComponent extends Component {
     return createElement('div', { id: 'menu' }, 
       this.generateMenuList(this.state.menuItems)
     );
+    
   }
   
   generateMenuList(menuItems, level = 0) {
