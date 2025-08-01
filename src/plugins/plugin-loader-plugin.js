@@ -42,6 +42,13 @@ class PluginLoaderPlugin extends Plugin {
             filePath: './word-plugin.js',
             loaded: false
         });
+
+        this.pluginRegistry.set('pdf', {
+            name: 'PDF插件',
+            description: '添加PDF功能',
+            filePath: './pdf-plugin.js',
+            loaded: false
+        });
     }
 
     createPluginLoaderUI() {
