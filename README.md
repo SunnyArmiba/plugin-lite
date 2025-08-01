@@ -1,7 +1,25 @@
 # plugin-lite
-a lite plugin style web framework. it is simple,base on pure js.
 
-# start server
+一个轻量级、纯 JavaScript 实现的前端插件化平台，支持动态加载插件、运行时挂载、卸载等功能。主要用于探索前端模块解耦、插件式架构的实现思路。
+
+🚧 **本项目处于前期交流与学习阶段，欢迎感兴趣的朋友一起探讨，功能和结构仍在演进中。**
+
+## ✨ 特点简介
+
+- 无构建依赖，直接浏览器运行
+- 支持插件动态加载、挂载、卸载
+- 插件以模块化 JS 文件形式组织
+- 面向前端工作台、后台系统的插件式需求探索
+
+## 🚀 快速开始
+
+**安装依赖** 
+主要是一个http-server 工具，用来启动一个本地服务器，没有其他依赖。
+`npm install`
+
+**启动本地服务器**
 `npx http-server`
-use browser open `http://localhost:xxxx/`
+默认的端口是8080，你可以在命令行中看到实际启动端口 ,用浏览器打开即可。
+`http://localhost:8080/`
+
 
