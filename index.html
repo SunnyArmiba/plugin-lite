@@ -1,22 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plugin Framework Demo</title>
 </head>
+
 <body>
     <!-- 添加菜单容器 -->
     <div id="menu">
         <p>Loading menu...</p>
     </div>
-    
+
     <div id="app">
         <h1>Loading...</h1>
     </div>
 
+    <div id="content">
+
+    </div>
+
     <script type="module" src="./src/index.js"></script>
-    
+
     <script>
         // 全局导航函数
         function navigate(path) {
@@ -30,8 +36,9 @@
             } else {
                 console.warn('Framework not ready yet');
             }
-            
+
         }
     </script>
 </body>
+
 </html>

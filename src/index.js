@@ -16,7 +16,7 @@ framework.registerPlugin('logger', new LoggerPlugin({ level: 'debug' }));
 framework.registerPlugin('http', new HttpPlugin());
 framework.registerPlugin('router', new RouterPlugin());
 // 注册菜单插件
-// framework.registerPlugin('menu', new MenuPlugin());
+framework.registerPlugin('menu', new MenuPlugin());
 // 注册状态管理插件
 framework.registerPlugin('state', new StatePlugin({
   initialState: {
@@ -38,7 +38,7 @@ framework.init().then(() => {
   const router = framework.getPlugin('router');
   const logger = framework.getPlugin('logger');
   // 获取菜单插件
-  // const menu = framework.getPlugin('menu');
+  const menu = framework.getPlugin('menu');
   // 获取状态管理插件
   const state = framework.getPlugin('state');
   logger.info('state loaded,default value:' + state.get('user'));
