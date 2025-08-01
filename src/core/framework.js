@@ -133,7 +133,23 @@ class Component {
   
   setState(partialState) {
     this.state = { ...this.state, ...partialState };
-    this.render();
+    
+    // 只有当组件已经被挂载时才重新渲染
+    if (this._element) {
+      // 保存当前的根元素引用
+      const rootElement = this._element;
+      
+      // 重新渲染组件
+      const newElement = this.render();
+      
+      // 清空当前根元素的内容
+      while (rootElement.firstChild) {
+        rootElement.removeChild(rootElement.firstChild);
+      }
+      
+      // 渲染新的内容到根元素
+      render(newElement, rootElement);
+    }
   }
   
   render() {
@@ -142,28 +158,54 @@ class Component {
 }
 
 function render(element, container) {
-  if (typeof element === 'string') {
-    container.appendChild(document.createTextNode(element));
-    return;
+  if (typeof element === 'string' || typeof element === 'number') {
+    const textNode = document.createTextNode(element);
+    container.appendChild(textNode);
+    return textNode;
   }
   
-  if (!element) return;
+  if (!element) return null;
   
   const { tag, props, children } = element;
   
+  // 处理组件
+  if (tag instanceof Function) {
+    // 创建组件实例
+    const componentInstance = new tag(props);
+    
+    // 调用组件的 render 方法
+    const componentElement = componentInstance.render();
+    
+    // 保存组件实例的根元素引用
+    componentInstance._element = container;
+    
+    // 渲染组件元素到容器
+    return render(componentElement, container);
+  }
+  
   // 创建DOM元素
-  const dom = tag instanceof Function 
-    ? document.createElement('div') 
-    : document.createElement(tag);
+  const dom = document.createElement(tag);
   
   // 设置属性
   if (props) {
     Object.keys(props).forEach(key => {
       if (key.startsWith('on')) {
-        dom.addEventListener(key.substring(2).toLowerCase(), props[key]);
+        // 事件处理
+        const eventName = key.substring(2).toLowerCase();
+        dom.addEventListener(eventName, props[key]);
       } else if (key === 'className') {
+        // className 特殊处理
         dom.className = props[key];
+      } else if (key === 'ref') {
+        // ref 回调处理
+        if (typeof props[key] === 'function') {
+          props[key](dom);
+        }
+      } else if (key === 'innerHTML') {
+        // innerHTML 特殊处理
+        dom.innerHTML = props[key];
       } else {
+        // 普通属性
         dom.setAttribute(key, props[key]);
       }
     });
@@ -180,13 +222,6 @@ function render(element, container) {
     });
   }
   
-  // 如果是组件，调用组件的render方法
-  if (tag instanceof Function) {
-    const componentInstance = new tag(props);
-    const componentElement = componentInstance.render();
-    render(componentElement, dom);
-  }
-  
   // 添加到容器
   if (container) {
     container.appendChild(dom);
@@ -195,4 +230,16 @@ function render(element, container) {
   return dom;
 }
 
-export { PluginFramework, Plugin, framework, createElement, Component, render };
+function renderComponent(component, container) {
+  // 设置组件的根元素
+  component._element = container;
+  
+  // 清空容器
+  container.innerHTML = '';
+  
+  // 渲染组件
+  const element = component.render();
+  return render(element, container);
+}
+
+export { PluginFramework, Plugin, framework, createElement, Component, render, renderComponent };

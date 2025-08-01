@@ -36,10 +36,10 @@ class PluginLoaderPlugin extends Plugin {
             loaded: false
         });
 
-        this.pluginRegistry.set('menu', {
-            name: '菜单插件',
-            description: '添加菜单功能',
-            filePath: './menu-plugin.js',
+        this.pluginRegistry.set('word', {
+            name: 'WORD插件',
+            description: '添加WORD功能',
+            filePath: './word-plugin.js',
             loaded: false
         });
     }
