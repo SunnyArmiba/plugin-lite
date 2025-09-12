@@ -131,7 +131,7 @@ class Component {
     this.state = {};
   }
   
-  setState(partialState) {
+  setState(partialState,callback) {
     this.state = { ...this.state, ...partialState };
     
     // 只有当组件已经被挂载时才重新渲染
@@ -149,6 +149,10 @@ class Component {
       
       // 渲染新的内容到根元素
       render(newElement, rootElement);
+      // 如果有回调函数，执行它
+      if (callback && typeof callback === 'function') {
+        callback();
+      }
     }
   }
   
@@ -204,7 +208,13 @@ function render(element, container) {
       } else if (key === 'innerHTML') {
         // innerHTML 特殊处理
         dom.innerHTML = props[key];
-      } else {
+      } else if (key === 'style') {
+        // style 样式处理
+        Object.keys(props[key]).forEach(styleKey => {
+          dom.style[styleKey] = props[key][styleKey];
+        });
+      } 
+      else {
         // 普通属性
         dom.setAttribute(key, props[key]);
       }

@@ -15,7 +15,10 @@ class PDFPreviewComponent extends Component {
             totalPages: 0,
             annotations: [], // 存储所有标注
             isAnnotating: false, // 是否处于标注模式
-            currentAnnotation: null // 当前正在绘制的标注
+            currentAnnotation: null, // 当前正在绘制的标注
+            showReasonDialog: false, // 是否显示原因对话框
+            pendingAnnotation: null, // 等待添加原因的标注
+            hoveredAnnotation: null   // 当前悬停的标注
         };
         this.canvasRef = null;
         this.startX = 0;
@@ -30,12 +33,13 @@ class PDFPreviewComponent extends Component {
             this.renderUploadArea(),
             loading ? this.renderLoading() : null,
             error ? this.renderError() : null,
-            pdfDocument ? this.renderPDFViewer() : null
+            pdfDocument ? this.renderPDFViewer() : null,
+            this.state.showReasonDialog ? this.renderReasonDialog() : null
         );
     }
 
     renderPDFViewer() {
-        const { currentPage, totalPages, isAnnotating } = this.state;
+        const { currentPage, totalPages, isAnnotating, hoveredAnnotation } = this.state;
 
         return createElement('div', { className: 'pdf-viewer' },
             // 工具栏（包含分页控制和标注功能）
@@ -67,9 +71,13 @@ class PDFPreviewComponent extends Component {
                     style: { width: '100%', border: '1px solid #ddd', cursor: this.state.isAnnotating ? 'crosshair' : 'default' },
                     onMouseDown: (e) => this.handleMouseDown(e),
                     onMouseMove: (e) => this.handleMouseMove(e),
-                    onMouseUp: (e) => this.handleMouseUp(e)
+                    onMouseUp: (e) => this.handleMouseUp(e),
+                    onMouseLeave: () => this.handleMouseLeave()
                 })
-            )
+            ),
+            this.renderTooltip()
+            // 添加悬浮框
+            // hoveredAnnotation ? this.renderTooltip() : null
         );
     }
 
@@ -94,6 +102,30 @@ class PDFPreviewComponent extends Component {
 
     renderError() {
         return createElement('div', { className: 'error' }, this.state.error);
+    }
+
+    // 渲染原因对话框
+    renderReasonDialog() {
+        return createElement('div', { className: 'modal-overlay' },
+            createElement('div', { className: 'modal' },
+                createElement('h3', null, '添加标注原因'),
+                createElement('p', null, '请填写添加此标注的原因：'),
+                createElement('textarea', {
+                    id: 'annotation-reason',
+                    placeholder: '输入标注原因...',
+                    style: { width: '100%', height: '80px', marginBottom: '10px' }
+                }),
+                createElement('div', { className: 'modal-buttons' },
+                    createElement('button', {
+                        onClick: () => this.cancelAnnotation()
+                    }, '取消'),
+                    createElement('button', {
+                        onClick: () => this.saveAnnotation(),
+                        style: { marginLeft: '10px', backgroundColor: '#007bff', color: 'white' }
+                    }, '保存')
+                )
+            )
+        );
     }
 
     async handleFileSelect(event) {
@@ -186,6 +218,7 @@ class PDFPreviewComponent extends Component {
 
             // 渲染标注
             this.renderAnnotations(context);
+            this.renderTooltip()
 
         } catch (error) {
             console.error('页面渲染失败:', error);
@@ -223,7 +256,37 @@ class PDFPreviewComponent extends Component {
             this.drawAnnotation(context, currentAnnotation);
         }
     }
+    // 渲染悬浮提示框
+    renderTooltip() {
+        const { hoveredAnnotation } = this.state;
+        if (!hoveredAnnotation || !hoveredAnnotation.reason) return null;
 
+        // 获取鼠标位置用于定位tooltip
+        const canvas = this.canvasRef;
+        const rect = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
+
+        const left = rect.left + hoveredAnnotation.x + hoveredAnnotation.width / 2;
+        const top = rect.top + hoveredAnnotation.y - 40; // 向上偏
+
+        return createElement('div', {
+            className: 'annotation-tooltip',
+            style: {
+                position: 'fixed',
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                color: 'white',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                maxWidth: '200px',
+                wordWrap: 'break-word',
+                pointerEvents: 'none',
+                zIndex: 9999,
+                left: 0,
+                top: 0
+            },
+            innerHTML: hoveredAnnotation.reason
+        }, hoveredAnnotation.reason);
+    }
     // 绘制单个标注
     drawAnnotation(context, annotation) {
         context.fillStyle = annotation.color || 'rgba(255, 255, 0, 0.4)';
@@ -307,25 +370,28 @@ class PDFPreviewComponent extends Component {
 
     // 鼠标移动事件 - 更新绘制
     handleMouseMove(e) {
-        if (!this.state.isAnnotating || !this.state.currentAnnotation) return;
+        if (!this.state.isAnnotating || !this.state.currentAnnotation) {
+            // 检测是否悬停在标注上
+            this.checkAnnotationHover(e);
+        } else {
+            const canvas = this.canvasRef;
+            const rect = canvas.getBoundingClientRect();
 
-        const canvas = this.canvasRef;
-        const rect = canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
 
-        const currentX = e.clientX - rect.left;
-        const currentY = e.clientY - rect.top;
+            // 更新当前标注的尺寸
+            const updatedAnnotation = {
+                ...this.state.currentAnnotation,
+                width: currentX - this.startX,
+                height: currentY - this.startY
+            };
 
-        // 更新当前标注的尺寸
-        const updatedAnnotation = {
-            ...this.state.currentAnnotation,
-            width: currentX - this.startX,
-            height: currentY - this.startY
-        };
+            this.setState({ currentAnnotation: updatedAnnotation });
 
-        this.setState({ currentAnnotation: updatedAnnotation });
-
-        // 重新渲染页面和标注
-        this.renderAnnotationsOnly();
+            // 重新渲染页面和标注
+            this.renderAnnotationsOnly();
+        }
     }
 
     // 鼠标抬起事件 - 完成绘制
@@ -360,16 +426,96 @@ class PDFPreviewComponent extends Component {
             color: 'rgba(255, 255, 0, 0.4)'
         };
 
+        // 显示原因对话框
+        this.setState({
+            currentAnnotation: null,
+            showReasonDialog: true,
+            pendingAnnotation: normalizedAnnotation
+        }, () => {
+            // 重新渲染页面以清除临时标注 ;
+            this.renderPage(this.state.currentPage);
+        });
+    }
+
+    // 添加鼠标离开事件处理
+    handleMouseLeave() {
+        this.setState({ hoveredAnnotation: null }, () => {
+            // 清除悬浮提示框;
+            this.renderAnnotationsOnly();
+        });
+    }
+
+    // 检测鼠标是否悬停在标注上
+    checkAnnotationHover(e) {
+        const canvas = this.canvasRef;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const { annotations, currentPage } = this.state;
+        let hovered = null;
+
+        // 从后往前检查，确保上层的标注优先被检测到
+        for (let i = annotations.length - 1; i >= 0; i--) {
+            const annotation = annotations[i];
+            if (annotation.page === currentPage &&
+                x >= annotation.x &&
+                x <= annotation.x + annotation.width &&
+                y >= annotation.y &&
+                y <= annotation.y + annotation.height) {
+                hovered = annotation;
+                break;
+            }
+        }
+
+        // 如果悬停的标注发生变化，则更新状态
+        if (hovered !== this.state.hoveredAnnotation) {
+            this.setState({ hoveredAnnotation: hovered }, () => {
+                // 重新渲染页面以显示悬浮提示框 ;
+                this.renderAnnotationsOnly();
+            });
+        }
+    }
+
+    // 保存标注（包括原因）
+    saveAnnotation() {
+        const reason = document.getElementById('annotation-reason').value;
+        const pendingAnnotation = this.state.pendingAnnotation;
+
         // 添加到标注列表
-        const newAnnotations = [...this.state.annotations, normalizedAnnotation];
+        const newAnnotations = [...this.state.annotations, {
+            ...pendingAnnotation,
+            reason: reason || '无原因说明'
+        }];
+
         this.setState({
             annotations: newAnnotations,
-            currentAnnotation: null
+            showReasonDialog: false,
+            pendingAnnotation: null
         }, () => {
-
+            // 清空输入框
+            let r = document.getElementById('annotation-reason');
+            if (r) {
+                r.value = '';
+            }
+            // 重新渲染页面和标注
+            this.renderPage(this.state.currentPage);
         });
-        // 重新渲染页面和标注
-        this.renderPage(this.state.currentPage);
+    }
+    // 取消标注
+    cancelAnnotation() {
+        this.setState({
+            showReasonDialog: false,
+            pendingAnnotation: null
+        }, () => {
+            // 清空输入框
+            const reasonInput = document.getElementById('annotation-reason');
+            if (reasonInput) {
+                reasonInput.value = '';
+            }
+            // 重新渲染页面以清除临时标注
+            this.renderPage(this.state.currentPage);
+        });
     }
 
     // 当组件状态更新后，如果需要重新渲染页面则执行
@@ -580,6 +726,54 @@ class PDFPlugin extends Plugin {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     border: 1px solid #ddd;
   }
+    /* Modal styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .modal {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-width: 300px;
+    max-width: 500px;
+  }
+  
+  .modal-buttons {
+    text-align: right;
+    margin-top: 15px;
+  }
+  
+  .modal button {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+.annotation-tooltip {
+    position: fixed;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    max-width: 200px;
+    word-wrap: break-word;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translateX(-50%);
+}
 `;
 
         document.head.appendChild(style);
